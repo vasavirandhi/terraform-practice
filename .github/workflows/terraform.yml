@@ -2,50 +2,64 @@ name: Terraform CI
 
 on:
   pull_request:
-    branches:
-      - main
+    branches: [ main ]
   push:
-    branches:
-      - main
+    branches: [ main ]
 
 jobs:
-  terraform:
-    runs-on: ubuntu-latest
 
-    strategy:
-      matrix:
-        environment: [dev, prod]
+  terraform-dev:
+    runs-on: ubuntu-latest
 
     defaults:
       run:
-        working-directory: environment/${{ matrix.environment }}
-
-        environment: ${{ matrix.environment == 'prod' && 'production' || '' }}
+        working-directory: environments/dev
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+      - uses: hashicorp/setup-terraform@v3
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+      - uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Terraform Init
-        run: terraform init
+      - run: terraform init
+      - run: terraform validate
 
-      - name: Terraform Validate
-        run: terraform validate
-
-      - name: Terraform Plan
-        if: github.event_name == 'pull_request'
+      - if: github.event_name == 'pull_request'
         run: terraform plan
 
-      - name: Terraform Apply
-        if: github.event_name == 'push'
+      - if: github.event_name == 'push'
+        run: terraform apply -auto-approve
+
+
+  terraform-prod:
+    runs-on: ubuntu-latest
+    environment: production   # ✅ THIS enables approval
+
+    defaults:
+      run:
+        working-directory: environments/prod
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - run: terraform init
+      - run: terraform validate
+
+      - if: github.event_name == 'pull_request'
+        run: terraform plan
+
+      - if: github.event_name == 'push'
         run: terraform apply -auto-approve
