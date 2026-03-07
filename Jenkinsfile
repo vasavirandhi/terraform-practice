@@ -33,10 +33,17 @@ pipeline {
             }
         }
 
-        stage('Terraform DEV Apply') {
-            when {
-                branch 'main'
+        stage('Terraform DEV Plan') {
+            steps {
+                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]) {
+                    dir('environments/dev') {
+                        sh 'terraform plan'
+                    }
+                }
             }
+        }
+
+        stage('Terraform DEV Apply') {
             steps {
                 withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]) {
                     dir('environments/dev') {
@@ -66,19 +73,23 @@ pipeline {
             }
         }
 
-        stage('Approval for PROD Apply') {
-            when {
-                branch 'main'
+        stage('Terraform PROD Plan') {
+            steps {
+                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]) {
+                    dir('environments/prod') {
+                        sh 'terraform plan'
+                    }
+                }
             }
+        }
+
+        stage('Approval for PROD Apply') {
             steps {
                 input message: "Approve Terraform Production Apply?"
             }
         }
 
         stage('Terraform PROD Apply') {
-            when {
-                branch 'main'
-            }
             steps {
                 withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]) {
                     dir('environments/prod') {
