@@ -15,10 +15,7 @@ pipeline {
 
         stage('Terraform DEV Init') {
             steps {
-                withCredentials([
-                    string(credentialsId: 'aws-access-key-id', variable: 'AWS_ACCESS_KEY_ID'),
-                    string(credentialsId: 'aws-secret-access-key', variable: 'AWS_SECRET_ACCESS_KEY')
-                ]) {
+                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]) {
                     dir('environments/dev') {
                         sh 'terraform init'
                     }
@@ -34,26 +31,12 @@ pipeline {
             }
         }
 
-        stage('Terraform DEV Plan') {
-            when {
-                changeRequest()
-            }
-            steps {
-                dir('environments/dev') {
-                    sh 'terraform plan'
-                }
-            }
-        }
-
         stage('Terraform DEV Apply') {
             when {
                 branch 'main'
             }
             steps {
-                withCredentials([
-                    string(credentialsId: 'aws-access-key-id', variable: 'AWS_ACCESS_KEY_ID'),
-                    string(credentialsId: 'aws-secret-access-key', variable: 'AWS_SECRET_ACCESS_KEY')
-                ]) {
+                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]) {
                     dir('environments/dev') {
                         sh 'terraform apply -auto-approve'
                     }
@@ -77,17 +60,6 @@ pipeline {
             }
         }
 
-        stage('Terraform PROD Plan') {
-            when {
-                changeRequest()
-            }
-            steps {
-                dir('environments/prod') {
-                    sh 'terraform plan'
-                }
-            }
-        }
-
         stage('Approval for PROD Apply') {
             when {
                 branch 'main'
@@ -102,10 +74,7 @@ pipeline {
                 branch 'main'
             }
             steps {
-                withCredentials([
-                    string(credentialsId: 'aws-access-key-id', variable: 'AWS_ACCESS_KEY_ID'),
-                    string(credentialsId: 'aws-secret-access-key', variable: 'AWS_SECRET_ACCESS_KEY')
-                ]) {
+                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]) {
                     dir('environments/prod') {
                         sh 'terraform apply -auto-approve'
                     }
