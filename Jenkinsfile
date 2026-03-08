@@ -2,35 +2,37 @@ pipeline {
     agent any
 
     parameters {
-        choice(name: 'ENV', choices: ['dev', 'prod'], description: 'Environment')
-        choice(name: 'ACTION', choices: ['apply', 'destroy'], description: 'Terraform Action')
-    }
-
-    environment {
-        AWS_ACCESS_KEY_ID = credentials('aws-jenkins')
+        choice(name: 'ENV', choices: ['dev','prod'], description: 'Environment')
+        choice(name: 'ACTION', choices: ['apply','destroy'], description: 'Terraform Action')
     }
 
     stages {
 
         stage('Terraform Init') {
             steps {
-                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding',
-                credentialsId: 'aws-jenkins']]) {
-                    dir("environments/${params.ENV}") {
-                        sh 'terraform init'
-                    }
+                dir("environments/${params.ENV}") {
+                    sh 'terraform init'
                 }
             }
         }
 
         stage('Terraform Plan') {
+            when {
+                expression { params.ACTION == 'apply' }
+            }
             steps {
-                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding',
-                credentialsId: 'aws-jenkins']]) {
-                    dir("environments/${params.ENV}") {
-                        sh 'terraform plan'
-                    }
+                dir("environments/${params.ENV}") {
+                    sh 'terraform plan -out=tfplan'
                 }
+            }
+        }
+
+        stage('Approval for PROD') {
+            when {
+                expression { params.ENV == 'prod' && params.ACTION == 'apply' }
+            }
+            steps {
+                input message: "Approve Terraform Apply for PROD?"
             }
         }
 
@@ -39,11 +41,8 @@ pipeline {
                 expression { params.ACTION == 'apply' }
             }
             steps {
-                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding',
-                credentialsId: 'aws-jenkins']]) {
-                    dir("environments/${params.ENV}") {
-                        sh 'terraform apply -auto-approve'
-                    }
+                dir("environments/${params.ENV}") {
+                    sh 'terraform apply -auto-approve tfplan'
                 }
             }
         }
@@ -53,11 +52,8 @@ pipeline {
                 expression { params.ACTION == 'destroy' }
             }
             steps {
-                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding',
-                credentialsId: 'aws-jenkins']]) {
-                    dir("environments/${params.ENV}") {
-                        sh 'terraform destroy -auto-approve'
-                    }
+                dir("environments/${params.ENV}") {
+                    sh 'terraform destroy -auto-approve'
                 }
             }
         }
