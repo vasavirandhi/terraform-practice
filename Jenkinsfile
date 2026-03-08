@@ -1,12 +1,19 @@
-parameters {
-    choice(
-        name: 'ENVIRONMENT',
-        choices: ['dev', 'prod'],
-        description: 'Select environment to deploy'
-    )
-}
 pipeline {
     agent any
+
+    parameters {
+        choice(
+            name: 'ENVIRONMENT',
+            choices: ['dev', 'prod'],
+            description: 'Select environment to deploy'
+        )
+        
+        choice(
+            name: 'ACTION',
+            choices: ['apply', 'destroy'],
+            description: 'Terraform action'
+        )
+    }
 
     environment {
         AWS_DEFAULT_REGION = 'us-east-1'
@@ -16,95 +23,61 @@ pipeline {
 
         stage('Checkout Code') {
             steps {
-                git branch: 'main', url: 'https://github.com/vasavirandhi/terraform-practice.git'
+                git branch: 'main', url: 'https://github.com/YOUR_USERNAME/YOUR_REPO.git'
             }
         }
 
-        stage('Terraform DEV Init') {
+        stage('Terraform Init') {
             steps {
-                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]) {
-                    dir('environments/dev') {
-                        sh 'terraform init'
-                    }
+                dir("environments/${params.ENVIRONMENT}") {
+                    sh 'terraform init'
                 }
             }
         }
 
-        stage('Terraform DEV Validate') {
+        stage('Terraform Plan') {
             steps {
-                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]) {
-                    dir('environments/dev') {
-                        sh 'terraform validate'
-                    }
+                dir("environments/${params.ENVIRONMENT}") {
+                    sh 'terraform plan'
                 }
             }
         }
 
-        stage('Terraform DEV Plan') {
+        stage('Approval for PROD') {
+            when {
+                expression {
+                    params.ENVIRONMENT == 'prod' && params.ACTION == 'apply'
+                }
+            }
             steps {
-                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]) {
-                    dir('environments/dev') {
-                        sh 'terraform plan'
-                    }
+                input message: 'Approve PROD deployment?'
+            }
+        }
+
+        stage('Terraform Apply') {
+            when {
+                expression {
+                    params.ACTION == 'apply'
+                }
+            }
+            steps {
+                dir("environments/${params.ENVIRONMENT}") {
+                    sh 'terraform apply -auto-approve'
                 }
             }
         }
 
-        stage('Terraform DEV Apply') {
+        stage('Terraform Destroy') {
+            when {
+                expression {
+                    params.ACTION == 'destroy'
+                }
+            }
             steps {
-                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]) {
-                    dir('environments/dev') {
-                        sh 'terraform apply -auto-approve'
-                    }
+                dir("environments/${params.ENVIRONMENT}") {
+                    sh 'terraform destroy -auto-approve'
                 }
             }
         }
-
-        stage('Terraform PROD Init') {
-            steps {
-                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]) {
-                    dir('environments/prod') {
-                        sh 'terraform init'
-                    }
-                }
-            }
-        }
-
-        stage('Terraform PROD Validate') {
-            steps {
-                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]) {
-                    dir('environments/prod') {
-                        sh 'terraform validate'
-                    }
-                }
-            }
-        }
-
-        stage('Terraform PROD Plan') {
-            steps {
-                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]) {
-                    dir('environments/prod') {
-                        sh 'terraform plan'
-                    }
-                }
-            }
-        }
-
-        stage('Approval for PROD Apply') {
-            steps {
-                input message: "Approve Terraform Production Apply?"
-            }
-        }
-
-        stage('Terraform PROD Apply') {
-            steps {
-                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]) {
-                    dir('environments/prod') {
-                        sh 'terraform apply -auto-approve'
-                    }
-                }
-            }
-        }
-
     }
 }
