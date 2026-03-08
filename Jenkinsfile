@@ -6,6 +6,10 @@ pipeline {
         choice(name: 'ACTION', choices: ['apply','destroy'], description: 'Terraform Action')
     }
 
+    environment {
+        AWS_ACCESS_KEY_ID = credentials('aws-jenkins')
+    }
+
     stages {
 
         stage('Terraform Init') {
