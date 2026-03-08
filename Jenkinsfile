@@ -6,20 +6,30 @@ pipeline {
         choice(name: 'ACTION', choices: ['apply', 'destroy'], description: 'Terraform Action')
     }
 
+    environment {
+        AWS_ACCESS_KEY_ID = credentials('aws-jenkins')
+    }
+
     stages {
 
         stage('Terraform Init') {
             steps {
-                dir("environments/${params.ENV}") {
-                    sh 'terraform init'
+                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding',
+                credentialsId: 'aws-jenkins']]) {
+                    dir("environments/${params.ENV}") {
+                        sh 'terraform init'
+                    }
                 }
             }
         }
 
         stage('Terraform Plan') {
             steps {
-                dir("environments/${params.ENV}") {
-                    sh 'terraform plan'
+                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding',
+                credentialsId: 'aws-jenkins']]) {
+                    dir("environments/${params.ENV}") {
+                        sh 'terraform plan'
+                    }
                 }
             }
         }
@@ -29,8 +39,11 @@ pipeline {
                 expression { params.ACTION == 'apply' }
             }
             steps {
-                dir("environments/${params.ENV}") {
-                    sh 'terraform apply -auto-approve'
+                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding',
+                credentialsId: 'aws-jenkins']]) {
+                    dir("environments/${params.ENV}") {
+                        sh 'terraform apply -auto-approve'
+                    }
                 }
             }
         }
@@ -40,8 +53,11 @@ pipeline {
                 expression { params.ACTION == 'destroy' }
             }
             steps {
-                dir("environments/${params.ENV}") {
-                    sh 'terraform destroy -auto-approve'
+                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding',
+                credentialsId: 'aws-jenkins']]) {
+                    dir("environments/${params.ENV}") {
+                        sh 'terraform destroy -auto-approve'
+                    }
                 }
             }
         }
